@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="onelinerml",
-    version="0.1.0",
+    version="0.1.4",
     description="A one-line machine learning library with remote API and dashboard support.",
     packages=find_packages(),
     install_requires=[
