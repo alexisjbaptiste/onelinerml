@@ -20,3 +20,7 @@ async def train_endpoint(file: UploadFile = File(...), model: str = "linear_regr
 @app.post("/predict")
 async def predict_endpoint():
     raise HTTPException(status_code=501, detail="Prediction endpoint not implemented yet.")
+    
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the OneLinerML API!"}
