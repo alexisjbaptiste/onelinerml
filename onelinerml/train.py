@@ -14,7 +14,7 @@ import os
 
 def deploy_api_and_dashboard():
     API_PORT = 8000
-    DASHBOARD_PORT = 8501
+    DASHBOARD_PORT = 8503
 
     # Start the API server in the background
     api_process = subprocess.Popen(
