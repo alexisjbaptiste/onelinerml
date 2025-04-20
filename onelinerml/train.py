@@ -8,6 +8,9 @@ import subprocess
 import time
 from pyngrok import ngrok
 import uvicorn
+import joblib
+import os
+
 
 def deploy_api_and_dashboard():
     API_PORT = 8000
@@ -33,12 +36,21 @@ def deploy_api_and_dashboard():
 
     return api_tunnel.public_url, dashboard_tunnel.public_url
 
-def train(data_source, model="linear_regression", target_column="target", test_size=0.2, random_state=42, api_key=None, **kwargs):
+
+def train(
+    data_source,
+    model="linear_regression",
+    target_column="target",
+    test_size=0.2,
+    random_state=42,
+    api_key=None,
+    model_save_path="trained_model.joblib",
+    **kwargs
+):
     # Set ngrok auth token using 'api_key' if provided, otherwise check environment variable
     if api_key is not None:
         ngrok.set_auth_token(api_key)
     else:
-        import os
         token = os.environ.get("NGROK_AUTHTOKEN")
         if token:
             ngrok.set_auth_token(token)
@@ -51,23 +63,27 @@ def train(data_source, model="linear_regression", target_column="target", test_s
 
     # Preprocess the data
     X, y = preprocess_data(data, target_column)
-    
+
     # Split into training and test sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
-    
+
     # Train the model
     model_instance = get_model(model, **kwargs)
     model_instance.fit(X_train, y_train)
-    
+
     # Evaluate the model
     metrics = evaluate_model(model_instance, X_test, y_test)
-    
+
+    # Save the trained model to disk
+    joblib.dump(model_instance, model_save_path)
+
     # Deploy the API and dashboard, and retrieve public URLs
     api_url, dashboard_url = deploy_api_and_dashboard()
-    
+
     # Print the evaluation metrics and public URLs
     print("Evaluation Metrics:", metrics)
+    print("Model saved at:", model_save_path)
     print("API is accessible at:", api_url)
     print("Dashboard is accessible at:", dashboard_url)
-    
+
     return model_instance, metrics
