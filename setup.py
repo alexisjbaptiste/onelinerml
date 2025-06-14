@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="onelinerml",
-    version="0.1.8",
+    version="0.1.11",
     description="A one-line machine learning library with API and dashboard deployment.",
     packages=find_packages(),
     install_requires=[
