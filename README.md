@@ -50,3 +50,8 @@ You love data science, but you don’t want to waste time on repetitive ML tasks
 🔥 Start using EasyML today:
 pip install OneLinerML
 
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
