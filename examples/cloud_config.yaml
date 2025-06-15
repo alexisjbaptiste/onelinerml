@@ -1,0 +1,8 @@
+# Example for Google Cloud Run
+provider: gcp
+region: us-central1
+project_id: your-project
+service_name: onelinerml
+api_port: 8080
+dashboard_port: 8503
+ngrok_auth_token: YOUR_NGROK_TOKEN
