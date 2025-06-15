@@ -16,7 +16,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "onelinerml-serve=onelinerml.train:train"
+            "onelinerml-serve=onelinerml.train:main"
         ]
     },
 )
