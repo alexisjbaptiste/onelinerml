@@ -27,6 +27,20 @@ No debugging nightmares. No messy dependencies. Just results
 🔥 Ready to level up your AI projects? Install OneLinerML now:
 pip install OneLinerML
 
+## Deployment
+
+Run locally with localtunnel:
+
+```bash
+onelinerml-serve data.csv --target price --model random_forest --deploy-mode local
+```
+
+Cloud deployment using a config file:
+
+```bash
+onelinerml-serve data.csv --target price --deploy-mode cloud --config-path examples/cloud_config.yaml
+```
+
 # For Data Scientists
 
 🚀 Focus on Insights, Not Implementation

@@ -33,7 +33,9 @@ async def root():
 async def train_endpoint(
     file: UploadFile = File(...),
     model: str = "linear_regression",
-    target_column: str = "target"
+    target_column: str = "target",
+    deploy_mode: str = "local",
+    config_path: str | None = None
 ):
     global model_global
     try:
@@ -45,20 +47,30 @@ async def train_endpoint(
         df,
         model=model,
         target_column=target_column,
-        model_save_path=MODEL_PATH
+        model_save_path=MODEL_PATH,
+        deploy_mode=deploy_mode,
+        config_path=config_path
     )
     model_global = trained_model
     return {"metrics": metrics}
 
 @app.post("/deploy")
-async def deploy_endpoint(file: UploadFile = File(...)):
+async def deploy_endpoint(
+    file: UploadFile = File(...),
+    deploy_mode: str = "local",
+    config_path: str | None = None
+):
     """
     Upload a pre-trained model (joblib or pickle) and deploy it.
     """
     contents = await file.read()
     with open(MODEL_PATH, "wb") as f:
         f.write(contents)
-    api_url, dash_url = deploy_model_from_path(MODEL_PATH)
+    api_url, dash_url = deploy_model_from_path(
+        MODEL_PATH,
+        deploy_mode=deploy_mode,
+        config_path=config_path
+    )
     return {"api_url": api_url, "dashboard_url": dash_url}
 
 @app.post("/predict")
