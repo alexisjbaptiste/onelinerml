@@ -12,6 +12,7 @@ import urllib.request
 import os
 import joblib
 import pickle
+from onelinerml.cloud import deploy_api_and_dashboard_cloud
 
 def deploy_api_and_dashboard_localtunnel(
     api_port=8000,
@@ -79,7 +80,9 @@ def deploy_api_and_dashboard_localtunnel(
 def deploy_model_from_path(
     model_save_path="trained_model.joblib",
     api_port=8000,
-    dashboard_port=8503
+    dashboard_port=8503,
+    deploy_mode="local",
+    config_path=None
 ):
     """
     Load a pre-trained model (joblib or pickle) and deploy API + dashboard via localtunnel.
@@ -99,6 +102,8 @@ def deploy_model_from_path(
     mg = model_instance  # override the global model reference
 
     # Spin up services
+    if deploy_mode == "cloud":
+        return deploy_api_and_dashboard_cloud(config_path)
     return deploy_api_and_dashboard_localtunnel(api_port, dashboard_port)
 
 def train(
@@ -110,6 +115,8 @@ def train(
     model_save_path="trained_model.joblib",
     api_port=8000,
     dashboard_port=8503,
+    deploy_mode="local",
+    config_path=None,
     **kwargs
 ):
     """
@@ -120,7 +127,7 @@ def train(
       - Fit model
       - Evaluate
       - Save model
-      - Deploy API + dashboard via localtunnel
+      - Deploy API + dashboard via local or cloud tunnel
     """
     # Load data
     if isinstance(data_source, str):
@@ -147,7 +154,10 @@ def train(
     joblib.dump(model_instance, model_save_path)
 
     # Deploy
-    api_url, dash_url = deploy_api_and_dashboard_localtunnel(api_port, dashboard_port)
+    if deploy_mode == "cloud":
+        api_url, dash_url = deploy_api_and_dashboard_cloud(config_path)
+    else:
+        api_url, dash_url = deploy_api_and_dashboard_localtunnel(api_port, dashboard_port)
 
     # Report
     print("Evaluation Metrics:", metrics)
@@ -156,3 +166,31 @@ def train(
     print("Dashboard is accessible at:", dash_url)
 
     return model_instance, metrics
+
+
+def main():
+    """Console entry point for training and deployment."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Train and deploy with OneLinerML")
+    parser.add_argument("data", help="CSV data path")
+    parser.add_argument("--model", default="linear_regression")
+    parser.add_argument("--target", dest="target_column", default="target")
+    parser.add_argument(
+        "--deploy-mode",
+        choices=["local", "cloud"],
+        default="local",
+        help="Deployment mode"
+    )
+    parser.add_argument("--config-path")
+
+    args = parser.parse_args()
+
+    train(
+        args.data,
+        model=args.model,
+        target_column=args.target_column,
+        deploy_mode=args.deploy_mode,
+        config_path=args.config_path,
+    )
+
