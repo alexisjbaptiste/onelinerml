@@ -49,7 +49,8 @@ async def train_endpoint(
         target_column=target_column,
         model_save_path=MODEL_PATH,
         deploy_mode=deploy_mode,
-        config_path=config_path
+        config_path=config_path,
+        deploy=False
     )
     model_global = trained_model
     return {"metrics": metrics}

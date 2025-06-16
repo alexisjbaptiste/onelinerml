@@ -117,6 +117,7 @@ def train(
     dashboard_port=8503,
     deploy_mode="local",
     config_path=None,
+    deploy: bool = True,
     **kwargs
 ):
     """
@@ -127,7 +128,11 @@ def train(
       - Fit model
       - Evaluate
       - Save model
-      - Deploy API + dashboard via local or cloud tunnel
+      - Optionally deploy API + dashboard via local or cloud tunnel
+    Parameters
+    ----------
+    deploy : bool, optional
+        If True, deploy the API and dashboard after training. Defaults to True.
     """
     # Load data
     if isinstance(data_source, str):
@@ -153,17 +158,20 @@ def train(
     # Save
     joblib.dump(model_instance, model_save_path)
 
-    # Deploy
-    if deploy_mode == "cloud":
-        api_url, dash_url = deploy_api_and_dashboard_cloud(config_path)
-    else:
-        api_url, dash_url = deploy_api_and_dashboard_localtunnel(api_port, dashboard_port)
+    # Deploy if requested
+    if deploy:
+        if deploy_mode == "cloud":
+            api_url, dash_url = deploy_api_and_dashboard_cloud(config_path)
+        else:
+            api_url, dash_url = deploy_api_and_dashboard_localtunnel(api_port, dashboard_port)
+
+        # Report URLs if deployment happened
+        print("API is accessible at:", api_url)
+        print("Dashboard is accessible at:", dash_url)
 
     # Report
     print("Evaluation Metrics:", metrics)
     print("Model saved at:", model_save_path)
-    print("API is accessible at:", api_url)
-    print("Dashboard is accessible at:", dash_url)
 
     return model_instance, metrics
 
