@@ -29,4 +29,5 @@ def preprocess_data(data, target_column):
     ])
     
     X_preprocessed = preprocessor.fit_transform(X)
-    return X_preprocessed, y.values
+    # Return the fitted preprocessor so it can be reused for inference
+    return preprocessor, X_preprocessed, y.values

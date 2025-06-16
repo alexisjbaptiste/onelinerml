@@ -10,17 +10,25 @@ import joblib, pickle, os
 app = FastAPI()
 
 MODEL_PATH = "trained_model.joblib"
+PREPROCESSOR_PATH = "preprocessor.joblib"
 model_global = None
+preprocessor_global = None
 
 @app.on_event("startup")
 def load_model_on_startup():
-    global model_global
+    global model_global, preprocessor_global
     if os.path.exists(MODEL_PATH):
         try:
             model_global = joblib.load(MODEL_PATH)
         except Exception:
             with open(MODEL_PATH, "rb") as f:
                 model_global = pickle.load(f)
+    if os.path.exists(PREPROCESSOR_PATH):
+        try:
+            preprocessor_global = joblib.load(PREPROCESSOR_PATH)
+        except Exception:
+            with open(PREPROCESSOR_PATH, "rb") as f:
+                preprocessor_global = pickle.load(f)
 
 class PredictRequest(BaseModel):
     data: list
@@ -37,7 +45,7 @@ async def train_endpoint(
     deploy_mode: str = "local",
     config_path: str | None = None
 ):
-    global model_global
+    global model_global, preprocessor_global
     try:
         contents = await file.read()
         df = pd.read_csv(StringIO(contents.decode("utf-8")))
@@ -48,15 +56,23 @@ async def train_endpoint(
         model=model,
         target_column=target_column,
         model_save_path=MODEL_PATH,
+        preprocessor_save_path=PREPROCESSOR_PATH,
         deploy_mode=deploy_mode,
         config_path=config_path
     )
     model_global = trained_model
+    if os.path.exists(PREPROCESSOR_PATH):
+        try:
+            preprocessor_global = joblib.load(PREPROCESSOR_PATH)
+        except Exception:
+            with open(PREPROCESSOR_PATH, "rb") as f:
+                preprocessor_global = pickle.load(f)
     return {"metrics": metrics}
 
 @app.post("/deploy")
 async def deploy_endpoint(
     file: UploadFile = File(...),
+    preprocessor_file: UploadFile | None = None,
     deploy_mode: str = "local",
     config_path: str | None = None
 ):
@@ -66,8 +82,13 @@ async def deploy_endpoint(
     contents = await file.read()
     with open(MODEL_PATH, "wb") as f:
         f.write(contents)
+    if preprocessor_file is not None:
+        prep_contents = await preprocessor_file.read()
+        with open(PREPROCESSOR_PATH, "wb") as f:
+            f.write(prep_contents)
     api_url, dash_url = deploy_model_from_path(
         MODEL_PATH,
+        preprocessor_save_path=PREPROCESSOR_PATH,
         deploy_mode=deploy_mode,
         config_path=config_path
     )
@@ -75,14 +96,18 @@ async def deploy_endpoint(
 
 @app.post("/predict")
 async def predict_endpoint(req: PredictRequest):
-    global model_global
+    global model_global, preprocessor_global
     if model_global is None:
         raise HTTPException(status_code=400, detail="Model not available.")
     data = req.data
     if isinstance(data, list) and (not data or not isinstance(data[0], list)):
         data = [data]
     try:
-        preds = model_global.predict(data)
+        if preprocessor_global is not None:
+            transformed = preprocessor_global.transform(data)
+        else:
+            transformed = data
+        preds = model_global.predict(transformed)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
     return {"prediction": preds.tolist()}

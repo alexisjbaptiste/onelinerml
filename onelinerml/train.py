@@ -79,6 +79,7 @@ def deploy_api_and_dashboard_localtunnel(
 
 def deploy_model_from_path(
     model_save_path="trained_model.joblib",
+    preprocessor_save_path="preprocessor.joblib",
     api_port=8000,
     dashboard_port=8503,
     deploy_mode="local",
@@ -97,9 +98,20 @@ def deploy_model_from_path(
         with open(model_save_path, 'rb') as f:
             model_instance = pickle.load(f)
 
-    # Register model for API
-    from onelinerml.api import model_global as mg
-    mg = model_instance  # override the global model reference
+    # Load the preprocessor if available
+    preprocessor_instance = None
+    if os.path.exists(preprocessor_save_path):
+        try:
+            preprocessor_instance = joblib.load(preprocessor_save_path)
+        except Exception:
+            with open(preprocessor_save_path, 'rb') as f:
+                preprocessor_instance = pickle.load(f)
+
+    # Register model and preprocessor for API
+    import onelinerml.api as api
+    api.model_global = model_instance
+    if preprocessor_instance is not None:
+        api.preprocessor_global = preprocessor_instance
 
     # Spin up services
     if deploy_mode == "cloud":
@@ -113,6 +125,7 @@ def train(
     test_size=0.2,
     random_state=42,
     model_save_path="trained_model.joblib",
+    preprocessor_save_path="preprocessor.joblib",
     api_port=8000,
     dashboard_port=8503,
     deploy_mode="local",
@@ -126,7 +139,7 @@ def train(
       - Train/test split
       - Fit model
       - Evaluate
-      - Save model
+      - Save model and preprocessor
       - Deploy API + dashboard via local or cloud tunnel
     """
     # Load data
@@ -135,8 +148,8 @@ def train(
     else:
         data = data_source
 
-    # Preprocess
-    X, y = preprocess_data(data, target_column)
+    # Preprocess and obtain the fitted preprocessor
+    preprocessor, X, y = preprocess_data(data, target_column)
 
     # Split
     X_train, X_test, y_train, y_test = train_test_split(
@@ -150,8 +163,9 @@ def train(
     # Evaluate
     metrics = evaluate_model(model_instance, X_test, y_test)
 
-    # Save
+    # Save model and preprocessor for later inference
     joblib.dump(model_instance, model_save_path)
+    joblib.dump(preprocessor, preprocessor_save_path)
 
     # Deploy
     if deploy_mode == "cloud":
