@@ -97,9 +97,9 @@ def deploy_model_from_path(
         with open(model_save_path, 'rb') as f:
             model_instance = pickle.load(f)
 
-    # Register model for API
-    from onelinerml.api import model_global as mg
-    mg = model_instance  # override the global model reference
+    # Register model for API so predictions use this instance
+    import onelinerml.api as api_module
+    api_module.model_global = model_instance
 
     # Spin up services
     if deploy_mode == "cloud":
