@@ -134,8 +134,8 @@ def train(
     """
     Full training pipeline:
       - Load CSV or DataFrame
-      - Preprocess
       - Train/test split
+      - Preprocess
       - Fit model
       - Evaluate
       - Save model
@@ -151,12 +151,14 @@ def train(
     else:
         data = data_source
 
-    # Preprocess
-    X, y, preprocessor = preprocess_data(data, target_column)
+    # Split raw data before preprocessing
+    train_df, test_df = train_test_split(
+        data, test_size=test_size, random_state=random_state
+    )
 
-    # Split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state
+    # Preprocess using only the training data for fitting
+    X_train, y_train, X_test, y_test, preprocessor = preprocess_data(
+        train_df, target_column, test_df
     )
 
     # Train
