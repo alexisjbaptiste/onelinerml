@@ -11,6 +11,11 @@ target_column = st.text_input("Target Column", "target")
 
 if data_file is not None and st.button("Train Model"):
     data = pd.read_csv(data_file)
-    model_instance, metrics = train(data, model=model_choice, target_column=target_column)
+    model_instance, metrics = train(
+        data,
+        model=model_choice,
+        target_column=target_column,
+        preprocessor_save_path="preprocessor.joblib"
+    )
     st.write("Evaluation Metrics:")
     st.json(metrics)

@@ -29,4 +29,4 @@ def preprocess_data(data, target_column):
     ])
     
     X_preprocessed = preprocessor.fit_transform(X)
-    return X_preprocessed, y.values
+    return X_preprocessed, y.values, preprocessor
