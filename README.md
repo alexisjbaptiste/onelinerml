@@ -41,6 +41,16 @@ Cloud deployment using a config file:
 onelinerml-serve data.csv --target price --deploy-mode cloud --config-path examples/cloud_config.yaml
 ```
 
+## Installing Dependencies
+
+Set up a clean Python environment and install the packages required by OneLinerML:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 # For Data Scientists
 
 🚀 Focus on Insights, Not Implementation

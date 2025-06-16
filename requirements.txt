@@ -1,0 +1,15 @@
+# Python package dependencies for OneLinerML
+pandas
+scikit-learn
+fastapi
+uvicorn
+streamlit
+pyngrok
+python-multipart
+joblib
+numpy
+xgboost
+lightgbm
+autosklearn
+pydantic
+pyyaml
