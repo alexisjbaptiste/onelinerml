@@ -17,7 +17,7 @@ You're a developer—your time is valuable. You don’t want to spend hours fine
 
 
 🚀 Get Started in Seconds
-from OneLinerML import train
+from onelinerml import train
 # Train a model in one line
 model, report = train("data.csv", target="price", algorithm="random_forest")
 print(report)
@@ -29,7 +29,16 @@ pip install OneLinerML
 
 ## Deployment
 
-Run locally with localtunnel:
+Run locally with localtunnel in one line:
+
+```python
+from onelinerml import train_and_deploy
+
+result = train_and_deploy("data.csv", target="price", algorithm="random_forest")
+print(result["api_url"], result["dashboard_url"])
+```
+
+CLI example:
 
 ```bash
 onelinerml-serve data.csv --target price --model random_forest --deploy-mode local
@@ -78,4 +87,3 @@ pip install OneLinerML
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
