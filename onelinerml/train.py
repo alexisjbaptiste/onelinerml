@@ -116,10 +116,58 @@ def deploy_model_from_path(
         return deploy_api_and_dashboard_cloud(config_path)
     return deploy_api_and_dashboard_localtunnel(api_port, dashboard_port)
 
+
+def train_and_deploy(
+    data_source,
+    model="linear_regression",
+    target_column="target",
+    target=None,
+    algorithm=None,
+    test_size=0.2,
+    random_state=42,
+    model_save_path="trained_model.joblib",
+    preprocessor_save_path="preprocessor.joblib",
+    api_port=8000,
+    dashboard_port=8503,
+    deploy_mode="local",
+    config_path=None,
+    **kwargs,
+):
+    """Train a model and immediately deploy the API + dashboard."""
+    model_instance, metrics = train(
+        data_source=data_source,
+        model=model,
+        target_column=target_column,
+        target=target,
+        algorithm=algorithm,
+        test_size=test_size,
+        random_state=random_state,
+        model_save_path=model_save_path,
+        preprocessor_save_path=preprocessor_save_path,
+        api_port=api_port,
+        dashboard_port=dashboard_port,
+        deploy_mode=deploy_mode,
+        config_path=config_path,
+        deploy=False,
+        **kwargs,
+    )
+    if deploy_mode == "cloud":
+        api_url, dash_url = deploy_api_and_dashboard_cloud(config_path)
+    else:
+        api_url, dash_url = deploy_api_and_dashboard_localtunnel(api_port, dashboard_port)
+    return {
+        "model": model_instance,
+        "metrics": metrics,
+        "api_url": api_url,
+        "dashboard_url": dash_url,
+    }
+
 def train(
     data_source,
     model="linear_regression",
     target_column="target",
+    target=None,
+    algorithm=None,
     test_size=0.2,
     random_state=42,
     model_save_path="trained_model.joblib",
@@ -145,11 +193,20 @@ def train(
     deploy : bool, optional
         If True, deploy the API and dashboard after training. Defaults to True.
     """
+    if target is not None:
+        target_column = target
+    if algorithm is not None:
+        model = algorithm
     # Load data
     if isinstance(data_source, str):
+        if not os.path.exists(data_source):
+            raise FileNotFoundError(f"Data file not found: {data_source}")
         data = pd.read_csv(data_source)
     else:
         data = data_source
+
+    if target_column not in data.columns:
+        raise ValueError(f"Target column '{target_column}' not found in data.")
 
     # Preprocess
     X, y, preprocessor = preprocess_data(data, target_column)
@@ -213,4 +270,3 @@ def main():
         deploy_mode=args.deploy_mode,
         config_path=args.config_path,
     )
-

@@ -1,11 +1,18 @@
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, IsolationForest
-from xgboost import XGBRegressor, XGBClassifier
-from lightgbm import LGBMRegressor, LGBMClassifier
+from importlib import import_module
 
-# AutoML imports
-from autosklearn.regression import AutoSklearnRegressor
-from autosklearn.classification import AutoSklearnClassifier
+from sklearn.ensemble import IsolationForest, RandomForestClassifier, RandomForestRegressor
+from sklearn.linear_model import LinearRegression, LogisticRegression
+
+
+def _import_optional(module_name, attr_name):
+    try:
+        module = import_module(module_name)
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise ImportError(
+            f"Optional dependency '{module_name}' is required for this model. "
+            f"Install it to use '{attr_name}'."
+        ) from exc
+    return getattr(module, attr_name)
 
 def get_model(model_name, **kwargs):
     """
@@ -34,18 +41,26 @@ def get_model(model_name, **kwargs):
     elif model_name == "isolation_forest":
         return IsolationForest(**kwargs)
     elif model_name == "xgboost_regressor":
-        return XGBRegressor(**kwargs)
+        return _import_optional("xgboost", "XGBRegressor")(**kwargs)
     elif model_name == "xgboost_classifier":
-        return XGBClassifier(**kwargs)
+        return _import_optional("xgboost", "XGBClassifier")(**kwargs)
     elif model_name == "lightgbm_regressor":
-        return LGBMRegressor(**kwargs)
+        return _import_optional("lightgbm", "LGBMRegressor")(**kwargs)
     elif model_name == "lightgbm_classifier":
-        return LGBMClassifier(**kwargs)
+        return _import_optional("lightgbm", "LGBMClassifier")(**kwargs)
     elif model_name == "auto_sklearn_regressor":
         # AutoML regressor with default 1-minute training time by default
-        return AutoSklearnRegressor(time_left_for_this_task=60, **kwargs)
+        autosklearn_regressor = _import_optional(
+            "autosklearn.regression",
+            "AutoSklearnRegressor",
+        )
+        return autosklearn_regressor(time_left_for_this_task=60, **kwargs)
     elif model_name == "auto_sklearn_classifier":
         # AutoML classifier with default 1-minute training time by default
-        return AutoSklearnClassifier(time_left_for_this_task=60, **kwargs)
+        autosklearn_classifier = _import_optional(
+            "autosklearn.classification",
+            "AutoSklearnClassifier",
+        )
+        return autosklearn_classifier(time_left_for_this_task=60, **kwargs)
     else:
         raise ValueError(f"Model '{model_name}' is not supported.")

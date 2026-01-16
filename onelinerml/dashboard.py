@@ -15,7 +15,8 @@ if data_file is not None and st.button("Train Model"):
         data,
         model=model_choice,
         target_column=target_column,
-        preprocessor_save_path="preprocessor.joblib"
+        preprocessor_save_path="preprocessor.joblib",
+        deploy=False
     )
     st.write("Evaluation Metrics:")
     st.json(metrics)
