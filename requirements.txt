@@ -3,13 +3,6 @@ pandas
 scikit-learn
 fastapi
 uvicorn
-streamlit
-pyngrok
-python-multipart
 joblib
 numpy
-xgboost
-lightgbm
-auto-sklearn
 pydantic
-pyyaml

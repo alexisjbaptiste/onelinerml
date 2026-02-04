@@ -1,16 +1,16 @@
 # onelinerml/api.py
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from onelinerml.train import train, deploy_model_from_path
+import joblib
+import os
+import pickle
 import pandas as pd
-from io import StringIO
-import joblib, pickle, os
 
 app = FastAPI()
 
-MODEL_PATH = "trained_model.joblib"
-PREPROCESSOR_PATH = "preprocessor.joblib"
+MODEL_PATH = os.getenv("ONELINERML_MODEL_PATH", "trained_model.joblib")
+PREPROCESSOR_PATH = os.getenv("ONELINERML_PREPROCESSOR_PATH", "preprocessor.joblib")
 model_global = None
 preprocessor_global = None
 
@@ -37,58 +37,9 @@ class PredictRequest(BaseModel):
 async def root():
     return {"message": "Welcome to the OneLinerML API!"}
 
-@app.post("/train")
-async def train_endpoint(
-    file: UploadFile = File(...),
-    model: str = "linear_regression",
-    target_column: str = "target",
-    deploy_mode: str = "local",
-    config_path: str | None = None
-):
-    global model_global, preprocessor_global
-    try:
-        contents = await file.read()
-        df = pd.read_csv(StringIO(contents.decode("utf-8")))
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid CSV format.")
-    trained_model, metrics = train(
-        df,
-        model=model,
-        target_column=target_column,
-        model_save_path=MODEL_PATH,
-        preprocessor_save_path=PREPROCESSOR_PATH,
-        deploy_mode=deploy_mode,
-        config_path=config_path,
-        deploy=False
-    )
-    model_global = trained_model
-    if os.path.exists(PREPROCESSOR_PATH):
-        try:
-            preprocessor_global = joblib.load(PREPROCESSOR_PATH)
-        except Exception:
-            with open(PREPROCESSOR_PATH, "rb") as f:
-                preprocessor_global = pickle.load(f)
-    return {"metrics": metrics}
-
-@app.post("/deploy")
-async def deploy_endpoint(
-    file: UploadFile = File(...),
-    deploy_mode: str = "local",
-    config_path: str | None = None
-):
-    """
-    Upload a pre-trained model (joblib or pickle) and deploy it.
-    """
-    contents = await file.read()
-    with open(MODEL_PATH, "wb") as f:
-        f.write(contents)
-    api_url, dash_url = deploy_model_from_path(
-        MODEL_PATH,
-        preprocessor_save_path=PREPROCESSOR_PATH,
-        deploy_mode=deploy_mode,
-        config_path=config_path
-    )
-    return {"api_url": api_url, "dashboard_url": dash_url}
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 @app.post("/predict")
 async def predict_endpoint(req: PredictRequest):
