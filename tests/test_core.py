@@ -102,11 +102,13 @@ class TestTrain:
         model = ml.train(regression_df, target="price")
         assert "r2" in model.metrics
         assert "mse" in model.metrics
+        assert model.analytics is not None
 
     def test_train_classification_df(self, classification_df):
         model = ml.train(classification_df, target="label")
         assert "accuracy" in model.metrics
         assert "f1" in model.metrics
+        assert model.analytics is not None
 
     def test_train_from_csv(self, regression_csv):
         model = ml.train(regression_csv, target="price")
@@ -203,3 +205,90 @@ class TestAPI:
         resp = client.post("/predict", json={"data": [{"x": 1}]})
         # Will either be 503 (no model) or 500 (load failed)
         assert resp.status_code in (500, 503)
+
+    def test_dashboard_endpoint(self, regression_df):
+        from fastapi.testclient import TestClient
+        from onelinerml.api import create_app
+
+        model = ml.train(regression_df, target="price")
+        app = create_app(model)
+        client = TestClient(app)
+
+        resp = client.get("/dashboard")
+        assert resp.status_code == 200
+        assert "OneLinerML Dashboard" in resp.text
+        assert "Chart" in resp.text
+
+    def test_metrics_endpoint(self, regression_df):
+        from fastapi.testclient import TestClient
+        from onelinerml.api import create_app
+
+        model = ml.train(regression_df, target="price")
+        app = create_app(model)
+        client = TestClient(app)
+
+        resp = client.get("/metrics")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "metrics" in body
+        assert "analytics" in body
+
+    def test_root_lists_endpoints(self, regression_df):
+        from fastapi.testclient import TestClient
+        from onelinerml.api import create_app
+
+        model = ml.train(regression_df, target="price")
+        app = create_app(model)
+        client = TestClient(app)
+
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "dashboard" in resp.json()["endpoints"]
+
+
+# ---------------------------------------------------------------------------
+# Tests: Analytics
+# ---------------------------------------------------------------------------
+
+class TestAnalytics:
+    def test_regression_analytics(self, regression_df):
+        model = ml.train(regression_df, target="price")
+        a = model.analytics
+        assert "correlation" in a
+        assert "target_distribution" in a
+        assert a["target_distribution"]["type"] == "numeric"
+        assert "feature_importance" in a
+        assert "feature_stats" in a
+        assert "dataset" in a
+        assert a["dataset"]["target"] == "price"
+        assert "residuals" in a
+
+    def test_classification_analytics(self, classification_df):
+        model = ml.train(classification_df, target="label")
+        a = model.analytics
+        assert a["target_distribution"]["type"] == "categorical"
+        assert "confusion_matrix" in a
+
+    def test_correlation_values(self, regression_df):
+        model = ml.train(regression_df, target="price")
+        corr = model.analytics["correlation"]
+        assert len(corr["columns"]) > 0
+        # Diagonal should be 1.0
+        for i, row in enumerate(corr["values"]):
+            assert abs(row[i] - 1.0) < 0.001
+
+    def test_feature_importance_sorted(self, regression_df):
+        model = ml.train(regression_df, target="price")
+        fi = model.analytics["feature_importance"]
+        if fi is not None:
+            # Should be sorted descending
+            for i in range(len(fi["values"]) - 1):
+                assert fi["values"][i] >= fi["values"][i + 1]
+
+    def test_save_load_preserves_analytics(self, regression_df, tmp_path):
+        model = ml.train(regression_df, target="price")
+        path = str(tmp_path / "model.joblib")
+        model.save(path)
+        loaded = ml.load(path)
+        assert loaded.analytics is not None
+        assert loaded.analytics["dataset"] == model.analytics["dataset"]

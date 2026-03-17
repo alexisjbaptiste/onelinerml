@@ -1,6 +1,8 @@
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from onelinerml.analytics import compute_analytics
 from onelinerml.evaluation import evaluate
 from onelinerml.model import Model
 from onelinerml.models import get_model
@@ -52,7 +54,16 @@ def train(data, target="target", model="auto", test_size=0.2, random_state=42,
 
     # Evaluate
     metrics = evaluate(estimator, X_test_t, y_test)
+    y_pred = estimator.predict(X_test_t)
     print(f"Trained {type(estimator).__name__} | {metrics}")
+
+    # Compute analytics for dashboard
+    analytics = compute_analytics(
+        data=data, target=target, estimator=estimator,
+        X_test=X_test_t, y_test=np.array(y_test),
+        y_pred=y_pred, feature_columns=feature_columns,
+        preprocessor=preprocessor,
+    )
 
     result = Model(
         estimator=estimator,
@@ -60,6 +71,7 @@ def train(data, target="target", model="auto", test_size=0.2, random_state=42,
         metrics=metrics,
         target_column=target,
         feature_columns=feature_columns,
+        analytics=analytics,
     )
 
     if save_to:

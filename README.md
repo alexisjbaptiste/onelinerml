@@ -1,6 +1,6 @@
 # OneLinerML
 
-Train and deploy ML models in one line.
+Train and deploy ML models in one line. Get an API URL and a metrics dashboard instantly.
 
 ## Install
 
@@ -8,31 +8,61 @@ Train and deploy ML models in one line.
 pip install onelinerml
 ```
 
-## Python API
+## One Line: Train + Deploy + Dashboard
 
 ```python
 import onelinerml as ml
 
-# Train on a CSV — returns a Model object
+ml.train("data.csv", target="price").deploy()
+```
+
+That's it. You get:
+- **API URL** at `http://localhost:8000/predict`
+- **Dashboard** at `http://localhost:8000/dashboard` with correlations, feature importance, residuals, and more
+- **Health check** at `http://localhost:8000/health`
+
+## Step by Step
+
+```python
+import onelinerml as ml
+
+# Train
 model = ml.train("data.csv", target="price")
-# => Trained GradientBoostingRegressor | {'mse': 0.42, 'r2': 0.95}
+print(model.metrics)  # {'mse': 0.42, 'r2': 0.95}
 
-# Check metrics
-print(model.metrics)
-
-# Predict on new data
+# Predict
 model.predict({"bedrooms": 3, "sqft": 1500})
 
-# Save and load
+# Save / load
 model.save("model.joblib")
 model = ml.load("model.joblib")
 
-# Deploy as an API server
-model.serve(port=8000)
-
-# Or chain it: train and deploy in one line
-ml.train("data.csv", target="price").serve()
+# Deploy with dashboard
+model.deploy(port=8000)
 ```
+
+## Public URL (ngrok)
+
+```bash
+pip install pyngrok
+```
+
+```python
+ml.train("data.csv", target="price").deploy(public=True)
+# => Public URL: https://abc123.ngrok.io/predict
+# => Public Dash: https://abc123.ngrok.io/dashboard
+```
+
+## Dashboard
+
+The dashboard shows:
+- **Model metrics** (R2, MSE, accuracy, F1, etc.)
+- **Correlation matrix** for all numeric features
+- **Feature importance** chart
+- **Predictions vs actual** scatter plot (regression) or confusion matrix (classification)
+- **Target distribution** histogram or pie chart
+- **Feature overview** table with types, stats, and missing values
+- **API usage** example with curl command
 
 ## CLI
 
@@ -40,17 +70,21 @@ ml.train("data.csv", target="price").serve()
 # Train and save
 onelinerml-train data.csv --target price --save-to model.joblib
 
-# Serve predictions
+# Deploy with dashboard
 onelinerml-serve model.joblib --port 8000
+
+# Deploy with public URL
+onelinerml-serve model.joblib --public
 ```
 
 ## API Endpoints
 
-Once served, the API exposes:
-
-- `GET /` — welcome message
-- `GET /health` — health check
-- `POST /predict` — send `{"data": [{"col1": val, ...}]}`, get `{"predictions": [...]}`
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/predict` | POST | Send `{"data": [{"col": val}]}`, get `{"predictions": [...]}` |
+| `/dashboard` | GET | Interactive metrics dashboard |
+| `/metrics` | GET | Raw metrics and analytics as JSON |
+| `/health` | GET | Health check |
 
 ## Supported Models
 
@@ -63,8 +97,6 @@ Once served, the API exposes:
 | `logistic_regression` | Logistic Regression |
 | `random_forest_classifier` | Random Forest Classifier |
 | `gradient_boosting_classifier` | Gradient Boosting Classifier |
-
-Pass extra parameters to the estimator:
 
 ```python
 ml.train("data.csv", target="price", model="random_forest", n_estimators=200)

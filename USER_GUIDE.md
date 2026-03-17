@@ -2,11 +2,17 @@
 
 ## What OneLinerML does
 
-OneLinerML gives you a minimal workflow for:
-- Training an ML model from a CSV or DataFrame in one function call
-- Automatic preprocessing (missing values, categorical encoding, scaling)
-- Saving/loading everything as a single file
-- Deploying a prediction API with one command
+Train an ML model and deploy it as an API with a metrics dashboard — in one line:
+
+```python
+import onelinerml as ml
+ml.train("data.csv", target="price").deploy()
+```
+
+You immediately get:
+- A prediction API at `http://localhost:8000/predict`
+- An interactive dashboard at `http://localhost:8000/dashboard`
+- Feature correlations, importance, residual plots, and more
 
 ## Installation
 
@@ -25,17 +31,9 @@ print(model.metrics)  # {'mse': 0.42, 'r2': 0.95}
 
 ### Choose a model
 
-By default, `auto` picks the best model type based on your target:
+By default, `auto` picks the best model type:
 - Numeric target (many unique values) -> GradientBoostingRegressor
 - Categorical/few-class target -> GradientBoostingClassifier
-
-You can also specify explicitly:
-
-```python
-model = ml.train("data.csv", target="price", model="random_forest")
-```
-
-Pass sklearn parameters directly:
 
 ```python
 model = ml.train("data.csv", target="price", model="random_forest", n_estimators=200)
@@ -45,7 +43,6 @@ model = ml.train("data.csv", target="price", model="random_forest", n_estimators
 
 ```python
 import pandas as pd
-
 df = pd.read_csv("data.csv")
 model = ml.train(df, target="price")
 ```
@@ -56,7 +53,7 @@ model = ml.train(df, target="price")
 # Single prediction
 model.predict({"bedrooms": 3, "sqft": 1500})
 
-# Batch prediction
+# Batch
 model.predict([
     {"bedrooms": 3, "sqft": 1500},
     {"bedrooms": 2, "sqft": 900},
@@ -65,21 +62,26 @@ model.predict([
 
 ## 3. Save and load
 
-Everything (model, preprocessor, metadata) is saved as one file:
+Everything is saved as one file:
 
 ```python
 model.save("model.joblib")
 model = ml.load("model.joblib")
 ```
 
-## 4. Deploy as an API
+## 4. Deploy with dashboard
 
 ### From Python
 
 ```python
-model.serve(port=8000)
-# or chain it
-ml.train("data.csv", target="price").serve()
+# Deploy locally
+model.deploy(port=8000)
+
+# Deploy with public URL (requires: pip install pyngrok)
+model.deploy(public=True)
+
+# Or chain it
+ml.train("data.csv", target="price").deploy()
 ```
 
 ### From CLI
@@ -87,12 +89,27 @@ ml.train("data.csv", target="price").serve()
 ```bash
 onelinerml-train data.csv --target price --save-to model.joblib
 onelinerml-serve model.joblib --port 8000
+onelinerml-serve model.joblib --public  # public URL via ngrok
 ```
+
+### Dashboard features
+
+Visit `http://localhost:8000/dashboard` to see:
+
+- **Metrics cards** — R2, MSE, accuracy, F1, etc.
+- **Correlation matrix** — heatmap of all numeric feature correlations
+- **Feature importance** — ranked bar chart
+- **Predictions vs actual** — scatter plot (regression) or confusion matrix (classification)
+- **Target distribution** — histogram or pie chart
+- **Feature overview** — table with types, statistics, and missing value counts
+- **API usage** — ready-to-copy curl command
 
 ### API endpoints
 
-- `GET /health` — returns `{"status": "ok", "model": "GradientBoostingRegressor"}`
-- `POST /predict` — send JSON, get predictions:
+- `GET /health` — `{"status": "ok", "model": "GradientBoostingRegressor"}`
+- `GET /metrics` — full metrics and analytics as JSON
+- `GET /dashboard` — interactive HTML dashboard
+- `POST /predict` — predictions:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -103,6 +120,7 @@ curl -X POST http://localhost:8000/predict \
 
 ## 5. Production tips
 
-- Run behind a process manager (Docker, systemd, Kubernetes).
-- Use a reverse proxy (NGINX, Caddy) for TLS and rate limiting.
-- Save model files in a persistent volume.
+- Use `model.save()` to persist, `ml.load()` to reload
+- Run behind Docker/systemd/Kubernetes for uptime
+- Use a reverse proxy (NGINX, Caddy) for TLS
+- Use `--public` with ngrok for quick sharing
