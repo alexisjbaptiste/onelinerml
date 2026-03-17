@@ -1,77 +1,82 @@
-# onelinerml/train.py
-
-import joblib
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from onelinerml.evaluation import evaluate_model
+from onelinerml.evaluation import evaluate
+from onelinerml.model import Model
 from onelinerml.models import get_model
-from onelinerml.preprocessing import preprocess_data
+from onelinerml.preprocessing import build_preprocessor
 
-def train(
-    data_source,
-    model="auto",
-    target_column="target",
-    test_size=0.2,
-    random_state=42,
-    model_save_path="trained_model.joblib",
-    preprocessor_save_path="preprocessor.joblib",
-    **kwargs
-):
+
+def train(data, target="target", model="auto", test_size=0.2, random_state=42,
+          save_to=None, **model_params):
+    """Train a model in one call. Returns a Model object.
+
+    Args:
+        data: CSV file path, URL, or pandas DataFrame.
+        target: Name of the target column.
+        model: Model name ('auto', 'linear_regression', 'random_forest', etc.).
+        test_size: Fraction of data held out for evaluation.
+        random_state: Random seed for reproducibility.
+        save_to: If set, save the model to this path after training.
+        **model_params: Extra keyword arguments passed to the sklearn estimator.
+
+    Returns:
+        A Model object with .predict(), .serve(), .save(), and .metrics.
     """
-    Full training pipeline:
-      - Load CSV or DataFrame
-      - Preprocess
-      - Train/test split
-      - Fit model
-      - Evaluate
-      - Save model
-    """
-    # Load data
-    if isinstance(data_source, str):
-        data = pd.read_csv(data_source)
-    else:
-        data = data_source
+    if isinstance(data, str):
+        data = pd.read_csv(data)
+    elif not isinstance(data, pd.DataFrame):
+        raise ValueError("data must be a file path or pandas DataFrame")
 
-    # Preprocess
-    X, y, preprocessor = preprocess_data(data, target_column)
+    if target not in data.columns:
+        raise ValueError(f"Target column '{target}' not found. "
+                         f"Available: {list(data.columns)}")
 
-    # Split
+    y = data[target]
+    X = data.drop(columns=[target])
+    feature_columns = X.columns.tolist()
+
+    # Split BEFORE preprocessing to prevent data leakage
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state
     )
 
+    # Fit preprocessor on training data only
+    preprocessor = build_preprocessor(X_train)
+    X_train_t = preprocessor.fit_transform(X_train)
+    X_test_t = preprocessor.transform(X_test)
+
     # Train
-    model_instance = get_model(model, y, **kwargs)
-    model_instance.fit(X_train, y_train)
+    estimator = get_model(model, y_train, **model_params)
+    estimator.fit(X_train_t, y_train)
 
     # Evaluate
-    metrics = evaluate_model(model_instance, X_test, y_test)
+    metrics = evaluate(estimator, X_test_t, y_test)
+    print(f"Trained {type(estimator).__name__} | {metrics}")
 
-    # Save
-    joblib.dump(model_instance, model_save_path)
-    joblib.dump(preprocessor, preprocessor_save_path)
+    result = Model(
+        estimator=estimator,
+        preprocessor=preprocessor,
+        metrics=metrics,
+        target_column=target,
+        feature_columns=feature_columns,
+    )
 
-    # Report
-    print("Evaluation Metrics:", metrics)
-    print("Model saved at:", model_save_path)
+    if save_to:
+        result.save(save_to)
 
-    return model_instance, metrics
+    return result
 
 
 def main():
-    """Console entry point for training."""
+    """CLI entry point for training."""
     import argparse
 
     parser = argparse.ArgumentParser(description="Train with OneLinerML")
-    parser.add_argument("data", help="CSV data path")
-    parser.add_argument("--model", default="auto")
-    parser.add_argument("--target", dest="target_column", default="target")
+    parser.add_argument("data", help="Path to CSV file")
+    parser.add_argument("--target", default="target", help="Target column name")
+    parser.add_argument("--model", default="auto", help="Model type")
+    parser.add_argument("--save-to", default="model.joblib", help="Output path")
 
     args = parser.parse_args()
-
-    train(
-        args.data,
-        model=args.model,
-        target_column=args.target_column,
-    )
+    train(args.data, target=args.target, model=args.model, save_to=args.save_to)

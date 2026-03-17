@@ -1,8 +1,6 @@
-# Python package dependencies for OneLinerML
 pandas
 scikit-learn
 fastapi
 uvicorn
 joblib
 numpy
-pydantic

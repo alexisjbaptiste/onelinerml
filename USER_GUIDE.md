@@ -1,12 +1,12 @@
 # OneLinerML User Guide
 
 ## What OneLinerML does
+
 OneLinerML gives you a minimal workflow for:
-- Loading a CSV or DataFrame
-- Preprocessing numeric + categorical columns
-- Training a lightweight scikit-learn model
-- Saving model artifacts
-- Serving predictions in production via FastAPI
+- Training an ML model from a CSV or DataFrame in one function call
+- Automatic preprocessing (missing values, categorical encoding, scaling)
+- Saving/loading everything as a single file
+- Deploying a prediction API with one command
 
 ## Installation
 
@@ -14,82 +14,95 @@ OneLinerML gives you a minimal workflow for:
 pip install onelinerml
 ```
 
-## 1. Train in one line
+## 1. Train a model
 
 ```python
-from onelinerml import train
+import onelinerml as ml
 
-model, metrics = train("data.csv", target_column="price")
-print(metrics)
+model = ml.train("data.csv", target="price")
+print(model.metrics)  # {'mse': 0.42, 'r2': 0.95}
 ```
 
-### Choose a model (optional)
+### Choose a model
 
-Supported models:
-- `auto` (default): picks Linear Regression for numeric targets, Logistic Regression for categorical targets
-- `linear_regression`
-- `random_forest`
-- `logistic_regression`
-- `random_forest_classifier`
+By default, `auto` picks the best model type based on your target:
+- Numeric target (many unique values) -> GradientBoostingRegressor
+- Categorical/few-class target -> GradientBoostingClassifier
+
+You can also specify explicitly:
 
 ```python
-model, metrics = train(
-    "data.csv",
-    target_column="price",
-    model="random_forest",
-)
+model = ml.train("data.csv", target="price", model="random_forest")
 ```
 
-Artifacts are saved by default:
-- `trained_model.joblib`
-- `preprocessor.joblib`
+Pass sklearn parameters directly:
 
-## 2. Deploy in production
+```python
+model = ml.train("data.csv", target="price", model="random_forest", n_estimators=200)
+```
 
-Start the API server in one command:
+### Use a DataFrame
+
+```python
+import pandas as pd
+
+df = pd.read_csv("data.csv")
+model = ml.train(df, target="price")
+```
+
+## 2. Predict
+
+```python
+# Single prediction
+model.predict({"bedrooms": 3, "sqft": 1500})
+
+# Batch prediction
+model.predict([
+    {"bedrooms": 3, "sqft": 1500},
+    {"bedrooms": 2, "sqft": 900},
+])
+```
+
+## 3. Save and load
+
+Everything (model, preprocessor, metadata) is saved as one file:
+
+```python
+model.save("model.joblib")
+model = ml.load("model.joblib")
+```
+
+## 4. Deploy as an API
+
+### From Python
+
+```python
+model.serve(port=8000)
+# or chain it
+ml.train("data.csv", target="price").serve()
+```
+
+### From CLI
 
 ```bash
-onelinerml-serve --model-path trained_model.joblib --preprocessor-path preprocessor.joblib
+onelinerml-train data.csv --target price --save-to model.joblib
+onelinerml-serve model.joblib --port 8000
 ```
 
-The API will be available at `http://0.0.0.0:8000`.
+### API endpoints
 
-### Health check
-
-```bash
-curl http://localhost:8000/health
-```
-
-### Predict
+- `GET /health` — returns `{"status": "ok", "model": "GradientBoostingRegressor"}`
+- `POST /predict` — send JSON, get predictions:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
-  -d '{"data": [[1.2, "blue", 9], [3.4, "red", 4]]}'
+  -d '{"data": [{"bedrooms": 3, "sqft": 1500}]}'
+# => {"predictions": [350000.0]}
 ```
 
-### Custom host/port
+## 5. Production tips
 
-```bash
-onelinerml-serve --host 0.0.0.0 --port 9000
-```
-
-## 3. CLI cheatsheet
-
-Train:
-
-```bash
-onelinerml-train data.csv --target price --model auto
-```
-
-Serve:
-
-```bash
-onelinerml-serve --model-path trained_model.joblib --preprocessor-path preprocessor.joblib
-```
-
-## 4. Production tips
-
-- Save artifacts in a persistent volume, then point `onelinerml-serve` at them.
-- Run behind a process manager (systemd, Docker, Kubernetes) for uptime.
+- Run behind a process manager (Docker, systemd, Kubernetes).
 - Use a reverse proxy (NGINX, Caddy) for TLS and rate limiting.
+- Save model files in a persistent volume.

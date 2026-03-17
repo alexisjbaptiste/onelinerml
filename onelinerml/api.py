@@ -1,59 +1,51 @@
-# onelinerml/api.py
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import joblib
-import os
-import pickle
-import pandas as pd
 
-app = FastAPI()
 
-MODEL_PATH = os.getenv("ONELINERML_MODEL_PATH", "trained_model.joblib")
-PREPROCESSOR_PATH = os.getenv("ONELINERML_PREPROCESSOR_PATH", "preprocessor.joblib")
-model_global = None
-preprocessor_global = None
+def create_app(model=None):
+    """Create a FastAPI app for serving predictions from a Model."""
+    state = {"model": model}
 
-@app.on_event("startup")
-def load_model_on_startup():
-    global model_global, preprocessor_global
-    if os.path.exists(MODEL_PATH):
+    @asynccontextmanager
+    async def lifespan(app):
+        if state["model"] is None:
+            import os
+            from onelinerml.model import Model
+            path = os.getenv("ONELINERML_MODEL_PATH", "model.joblib")
+            state["model"] = Model.load(path)
+        yield
+
+    app = FastAPI(lifespan=lifespan)
+
+    class PredictRequest(BaseModel):
+        data: list
+
+    @app.get("/")
+    async def root():
+        return {"message": "OneLinerML API"}
+
+    @app.get("/health")
+    async def health():
+        m = state["model"]
+        return {"status": "ok", "model": type(m.estimator).__name__ if m else None}
+
+    @app.post("/predict")
+    async def predict(req: PredictRequest):
+        m = state["model"]
+        if m is None:
+            raise HTTPException(status_code=503, detail="No model loaded")
         try:
-            model_global = joblib.load(MODEL_PATH)
-        except Exception:
-            with open(MODEL_PATH, "rb") as f:
-                model_global = pickle.load(f)
-    if os.path.exists(PREPROCESSOR_PATH):
-        try:
-            preprocessor_global = joblib.load(PREPROCESSOR_PATH)
-        except Exception:
-            with open(PREPROCESSOR_PATH, "rb") as f:
-                preprocessor_global = pickle.load(f)
+            preds = m.predict(req.data)
+            return {"predictions": preds.tolist()}
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
 
-class PredictRequest(BaseModel):
-    data: list
+    return app
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the OneLinerML API!"}
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-@app.post("/predict")
-async def predict_endpoint(req: PredictRequest):
-    global model_global, preprocessor_global
-    if model_global is None:
-        raise HTTPException(status_code=400, detail="Model not available.")
-    data = req.data
-    if isinstance(data, list) and (not data or not isinstance(data[0], list)):
-        data = [data]
-    try:
-        if preprocessor_global is not None:
-            df = pd.DataFrame(data)
-            data = preprocessor_global.transform(df)
-        preds = model_global.predict(data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction error: {e}")
-    return {"prediction": preds.tolist()}
+# Default app for uvicorn CLI usage: uvicorn onelinerml.api:app
+app = create_app()

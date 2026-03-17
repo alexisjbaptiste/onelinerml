@@ -1,4 +1,6 @@
-# onelinerml/__init__.py
+from onelinerml.model import Model
 from onelinerml.train import train
-from onelinerml.api import app as api_app
-from onelinerml.serve import serve
+
+load = Model.load
+
+__all__ = ["train", "load", "Model"]
