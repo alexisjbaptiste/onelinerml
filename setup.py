@@ -2,9 +2,10 @@ from setuptools import setup, find_packages
 
 setup(
     name="onelinerml",
-    version="0.1.11",
-    description="A one-line machine learning library for training and serving models.",
+    version="0.2.0",
+    description="Train and deploy ML models in one line.",
     packages=find_packages(),
+    python_requires=">=3.8",
     install_requires=[
         "pandas",
         "scikit-learn",
@@ -12,7 +13,6 @@ setup(
         "uvicorn",
         "joblib",
         "numpy",
-        "pydantic",
     ],
     entry_points={
         "console_scripts": [

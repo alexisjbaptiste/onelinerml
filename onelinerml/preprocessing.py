@@ -1,32 +1,28 @@
-# onelinerml/preprocessing.py
 import pandas as pd
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-def preprocess_data(data, target_column):
-    # Separate target variable from features
-    y = data[target_column]
-    X = data.drop(columns=[target_column])
-    
-    # Identify numeric and categorical columns
-    numeric_cols = X.select_dtypes(include=["int64", "float64"]).columns
-    categorical_cols = X.select_dtypes(include=["object", "category"]).columns
-    
-    # Build pipelines for numeric and categorical data
-    numeric_pipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="mean"))
+
+def build_preprocessor(X):
+    """Build a preprocessing pipeline that handles numeric and categorical columns."""
+    numeric_cols = X.select_dtypes(include=["number"]).columns.tolist()
+    categorical_cols = X.select_dtypes(include=["object", "category", "str"]).columns.tolist()
+
+    numeric_pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="mean")),
+        ("scaler", StandardScaler()),
     ])
-    categorical_pipeline = Pipeline(steps=[
+    categorical_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore"))
+        ("onehot", OneHotEncoder(handle_unknown="ignore")),
     ])
-    
-    preprocessor = ColumnTransformer(transformers=[
-        ("num", numeric_pipeline, numeric_cols),
-        ("cat", categorical_pipeline, categorical_cols)
-    ])
-    
-    X_preprocessed = preprocessor.fit_transform(X)
-    return X_preprocessed, y.values, preprocessor
+
+    transformers = []
+    if numeric_cols:
+        transformers.append(("num", numeric_pipeline, numeric_cols))
+    if categorical_cols:
+        transformers.append(("cat", categorical_pipeline, categorical_cols))
+
+    return ColumnTransformer(transformers=transformers)

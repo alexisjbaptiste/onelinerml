@@ -1,34 +1,41 @@
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 import numpy as np
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    GradientBoostingRegressor,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
+from sklearn.linear_model import LinearRegression, LogisticRegression
 
-SUPPORTED_MODELS = {
+MODELS = {
     "linear_regression": LinearRegression,
     "random_forest": RandomForestRegressor,
+    "gradient_boosting": GradientBoostingRegressor,
     "logistic_regression": LogisticRegression,
     "random_forest_classifier": RandomForestClassifier,
+    "gradient_boosting_classifier": GradientBoostingClassifier,
 }
 
 
-def _auto_model(y):
-    if np.issubdtype(y.dtype, np.number):
-        return LinearRegression()
-    return LogisticRegression(max_iter=1000)
+def is_regression(y):
+    """Determine if a target array is a regression problem."""
+    arr = np.array(y)
+    if not np.issubdtype(arr.dtype, np.number):
+        return False
+    # Float targets are regression; integer targets with many unique values are too
+    if np.issubdtype(arr.dtype, np.floating):
+        return True
+    return len(np.unique(arr)) > 10
 
 
-def get_model(model_name, y, **kwargs):
-    """
-    Return an untrained model instance by name.
-    Supported models:
-      - auto
-      - linear_regression
-      - random_forest
-      - logistic_regression
-      - random_forest_classifier
-    """
-    if model_name == "auto":
-        return _auto_model(y)
-    model_cls = SUPPORTED_MODELS.get(model_name)
-    if model_cls is None:
-        raise ValueError(f"Model '{model_name}' is not supported.")
-    return model_cls(**kwargs)
+def get_model(name, y, **kwargs):
+    """Return an untrained model instance. Use 'auto' for automatic selection."""
+    if name == "auto":
+        if is_regression(y):
+            return GradientBoostingRegressor(**kwargs)
+        return GradientBoostingClassifier(**kwargs)
+
+    if name not in MODELS:
+        supported = ", ".join(sorted(MODELS.keys()))
+        raise ValueError(f"Unknown model '{name}'. Choose from: {supported}")
+    return MODELS[name](**kwargs)
